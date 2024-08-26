@@ -1,0 +1,64 @@
+# C++ binary files
+*.out
+*.exe
+*.o
+*.obj
+*.so
+*.dll
+*.dylib
+
+# Build directories
+build/
+Build/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# Qt Creator
+*.pro.user
+*.pro.user.*
+*.qmake.stash
+*.qmake.cache
+*.qmlproject.user
+
+# Qt generated files
+moc_*.cpp
+moc_*.h
+ui_*.h
+qrc_*.cpp
+Makefile*
+*.moc
+*.qrc
+
+# VSCode files
+.vscode/
+.vscode/settings.json
+.vscode/launch.json
+.vscode/tasks.json
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Qt Installer Framework
+*.qpf
+*.qph
+
+# Logs and databases
+*.log
+*.sqlite
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+*~
+
+# Resources
+#resources/sample_data.csv
+
+# Ignoring custom test directories or output directories
+test/
+Testing/
