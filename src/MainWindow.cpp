@@ -12,7 +12,11 @@ MainWindow::MainWindow(QWidget *parent)
 
     std::vector<QVector2D> data = {QVector2D(5, 5), QVector2D(8, 8), QVector2D(20, 5)};
     
-    graphWidget->addGraph(data);
+
+    for(auto i : data)
+        graphWidget->addDataPoint(i);
+    
+    graphWidget->update();
     graphWidget->rescaleAxes();
     setCentralWidget(graphWidget);
 

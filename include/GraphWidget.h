@@ -17,10 +17,10 @@ public:
     explicit GraphWidget(QWidget *parent = nullptr);
     ~GraphWidget();
 
-    void addGraph(const std::vector<QVector2D>& points);  // Declaration of addGraph
+    //void addGraph(const std::vector<QVector2D>& points);  // Declaration of addGraph
     void addDataPoint(const QVector2D& point);
     void addDataPoints(const std::vector<QVector2D>& points);
-    void clearGraphs();
+    void clearPoints();
     void rescaleAxes();  // Declaration of rescaleAxes
 
 protected:
@@ -34,13 +34,15 @@ protected:
     // bool event(QEvent *event) override;
 
 private:
-    void drawAxisLabels(QPainter &painter, int tickLength = 5, int numTicks = 10);
+    void drawDataPoints(QPainter &painter, int tickLength = 5, int numTicks = 10);
+    void drawXAxis(QPainter &painter, int tickLength = 5, int numTicks = 10);
+    void drawYAxis(QPainter &painter, int tickLength = 5, int numTicks = 10);
     void updateBounds(); // Add this declaration for the empty updateBounds function
     void adjustZoomAndTranslation();
     void updateTranslationToCenter();
     QVector2D mapToScreen(const QVector2D& point) const;
 
-    QVector<QVector<QVector2D>> graphs;
+    QVector<QVector2D> points;
     QVector2D minBounds;
     QVector2D maxBounds;
     QVector2D translation;
