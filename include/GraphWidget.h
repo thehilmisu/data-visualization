@@ -9,6 +9,8 @@
 #include <optional>  
 #include <QMouseEvent>
 #include <QWheelEvent>
+#include <iostream>
+
 
 class GraphWidget : public QOpenGLWidget, protected QOpenGLFunctions {
     Q_OBJECT
@@ -30,8 +32,8 @@ protected:
 
     // void mousePressEvent(QMouseEvent *event) override;
     // void mouseMoveEvent(QMouseEvent *event) override;
-    // void wheelEvent(QWheelEvent *event) override;
-    // bool event(QEvent *event) override;
+     void wheelEvent(QWheelEvent *event) override;
+     bool event(QEvent *event) override;
 
 private:
     void drawDataPoints(QPainter &painter, int tickLength = 5, int numTicks = 10);
