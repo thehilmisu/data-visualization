@@ -2,13 +2,13 @@
 #include <QDebug>
 #include <QPainter>
 #include <QFont>
-#include <cmath>  
-#include <iostream>
+#include <cmath>
+#include <QMouseEvent>
+#include <QWheelEvent>
+#include <optional>
 
 OpenGLWidget2D::OpenGLWidget2D(QWidget *parent)
-    : QOpenGLWidget(parent), minBounds(-1, -1), maxBounds(1, 1), translation(0, 0), zoomLevel(1.0f), margin(75) {
-    setMouseTracking(true); 
-}
+    : QOpenGLWidget(parent), minBounds(-1, -1), maxBounds(1, 1), translation(0, 0), zoomLevel(1.0f) {}
 
 OpenGLWidget2D::~OpenGLWidget2D() {}
 
@@ -34,10 +34,9 @@ void OpenGLWidget2D::paintGL() {
     QPainter painter(this);
     painter.setPen(Qt::white);
     painter.setFont(QFont("Arial", 10));
-
     drawAxisLabels(painter);
 
-    // Highlight the hovered point if any
+     // Highlight the hovered point if any
     if (hoveredPoint) {
         QVector2D screenPoint = mapToScreen(hoveredPoint.value());
         painter.setBrush(Qt::yellow);  // Highlight color
@@ -47,9 +46,20 @@ void OpenGLWidget2D::paintGL() {
     }
 }
 
-
 void OpenGLWidget2D::mousePressEvent(QMouseEvent *event) {
     lastMousePosition = event->pos();
+}
+
+void OpenGLWidget2D::wheelEvent(QWheelEvent *event) {
+    float zoomFactor = 1.0f + event->angleDelta().y() / 2400.0f;
+    zoomLevel *= zoomFactor;
+
+    if (zoomLevel < 0.1f) zoomLevel = 0.1f;
+    if (zoomLevel > 100.0f) zoomLevel = 100.0f;
+
+    QVector2D mousePos(event->position());
+
+    update();
 }
 
 bool OpenGLWidget2D::event(QEvent *event) {
@@ -119,72 +129,6 @@ void OpenGLWidget2D::mouseMoveEvent(QMouseEvent *event) {
     // No need to update `lastMousePosition` unless used elsewhere for dragging or other interactions
 }
 
-
-
-void OpenGLWidget2D::wheelEvent(QWheelEvent *event) {
-    float zoomFactor = 1.0f + event->angleDelta().y() / 2400.0f;
-    QVector2D mousePos(event->position());  // Use position() instead of pos()
-    
-    QVector2D beforeScale = (mousePos - translation) / zoomLevel;
-    zoomLevel *= zoomFactor;
-
-    if (zoomLevel < 0.1f) zoomLevel = 0.1f;
-    if (zoomLevel > 100.0f) zoomLevel = 100.0f;
-
-    QVector2D afterScale = (mousePos - translation) / zoomLevel;
-    translation += (beforeScale - afterScale) * zoomLevel;
-
-    update();
-}
-
-void OpenGLWidget2D::addGraph(const std::vector<QVector2D>& data) {
-    QVector<QVector2D> qtData(data.begin(), data.end());
-    graphs.push_back(qtData);
-    updateBounds();
-    updateTranslationToCenter();
-    update();
-}
-
-void OpenGLWidget2D::clearGraphs() {
-    graphs.clear();
-    minBounds = QVector2D(-1, -1);
-    maxBounds = QVector2D(1, 1);
-    translation = QVector2D(0, 0);
-    zoomLevel = 1.0f;
-    update();
-}
-
-void OpenGLWidget2D::rescaleAxes() {
-    updateBounds();
-    updateTranslationToCenter();
-    update();
-}
-
-void OpenGLWidget2D::updateBounds() {
-    if (graphs.empty()) {
-        minBounds = QVector2D(-1, -1);
-        maxBounds = QVector2D(1, 1);
-        return;
-    }
-
-    minBounds = QVector2D(std::numeric_limits<float>::max(), std::numeric_limits<float>::max());
-    maxBounds = QVector2D(std::numeric_limits<float>::lowest(), std::numeric_limits<float>::lowest());
-
-    for (const auto& graph : graphs) {
-        for (const auto& point : graph) {
-            if (point.x() < minBounds.x()) minBounds.setX(point.x());
-            if (point.y() < minBounds.y()) minBounds.setY(point.y());
-            if (point.x() > maxBounds.x()) maxBounds.setX(point.x());
-            if (point.y() > maxBounds.y()) maxBounds.setY(point.y());
-        }
-    }
-}
-
-void OpenGLWidget2D::updateTranslationToCenter() {
-    // Set translation to position (0, 0) at the bottom-left corner
-    translation = QVector2D(margin, height() - margin);
-}
-
 void OpenGLWidget2D::drawAxisLabels(QPainter &painter, int tickLength, int numTicks) {
     float xRange = maxBounds.x() - 0;  // Start from 0 instead of minBounds.x()
     float yRange = maxBounds.y() - 0;  // Start from 0 instead of minBounds.y()
@@ -247,13 +191,121 @@ void OpenGLWidget2D::drawAxisLabels(QPainter &painter, int tickLength, int numTi
     }
 }
 
-
 QVector2D OpenGLWidget2D::mapToScreen(const QVector2D& point) const {
-    // X-axis: map from data point to screen space
-    float x = margin + (point.x() / maxBounds.x()) * (width() - 2 * margin) * zoomLevel;
-    // Y-axis: invert the Y-axis mapping because the origin is now at the bottom-left
-    float y = height() - margin - (point.y() / maxBounds.y()) * (height() - 2 * margin) * zoomLevel;
+    const int margin = 75;  
+    float x = margin + (point.x() - minBounds.x()) / (maxBounds.x() - minBounds.x()) * (width() - 2 * margin);
+    float y = height() - margin - (point.y() - minBounds.y()) / (maxBounds.y() - minBounds.y()) * (height() - 2 * margin);
     return QVector2D(x, y);
 }
 
+void OpenGLWidget2D::addDataPoint(const QVector2D& point) {
+    if (graphs.isEmpty()) {
+        graphs.append(QVector<QVector2D>());
+    }
+    graphs[0].append(point);
 
+    bool requiresZoomOut = false;
+    updateBounds(point, requiresZoomOut);
+
+    if (requiresZoomOut) {
+        adjustZoomAndTranslation();
+    }
+
+    update();  // Trigger a redraw
+}
+
+void OpenGLWidget2D::addDataPoints(const std::vector<QVector2D>& points) {
+    if (graphs.isEmpty()) {
+        graphs.append(QVector<QVector2D>());
+    }
+    bool requiresZoomOut = false;
+    for (const auto& point : points) {
+        graphs[0].append(point);
+        updateBounds(point, requiresZoomOut);
+    }
+
+    if (requiresZoomOut) {
+        adjustZoomAndTranslation();
+    }
+
+    update();  // Trigger a redraw
+}
+
+void OpenGLWidget2D::addGraph(const std::vector<QVector2D>& points) {
+    QVector<QVector2D> qtData(points.begin(), points.end());
+    graphs.push_back(qtData);
+    updateBounds();
+    rescaleAxes();
+    update();
+}
+
+void OpenGLWidget2D::updateBounds(const QVector2D& point, bool& requiresZoomOut) {
+    if (point.x() < minBounds.x()) {
+        minBounds.setX(point.x());
+        requiresZoomOut = true;
+    }
+    if (point.y() < minBounds.y()) {
+        minBounds.setY(point.y());
+        requiresZoomOut = true;
+    }
+    if (point.x() > maxBounds.x()) {
+        maxBounds.setX(point.x());
+        requiresZoomOut = true;
+    }
+    if (point.y() > maxBounds.y()) {
+        maxBounds.setY(point.y());
+        requiresZoomOut = true;
+    }
+}
+
+void OpenGLWidget2D::adjustZoomAndTranslation() {
+    float xRange = maxBounds.x() - minBounds.x();
+    float yRange = maxBounds.y() - minBounds.y();
+
+    float xZoomFactor = width() / (xRange + 2 * margin);
+    float yZoomFactor = height() / (yRange + 2 * margin);
+
+    zoomLevel = qMin(xZoomFactor, yZoomFactor);
+    updateTranslationToCenter();
+}
+
+void OpenGLWidget2D::updateTranslationToCenter() {
+    QVector2D dataCenter = (minBounds + maxBounds) / 2.0f;
+    QVector2D screenCenter(width() / 2.0f, height() / 2.0f);
+    translation = screenCenter - mapToScreen(dataCenter);
+}
+
+void OpenGLWidget2D::rescaleAxes() {
+    updateBounds();
+    updateTranslationToCenter();
+    update();
+}
+
+void OpenGLWidget2D::clearGraphs() {
+    graphs.clear();
+    minBounds = QVector2D(-1, -1);
+    maxBounds = QVector2D(1, 1);
+    translation = QVector2D(0, 0);
+    zoomLevel = 1.0f;
+    update();
+}
+
+void OpenGLWidget2D::updateBounds() {
+    if (graphs.isEmpty()) {
+        minBounds = QVector2D(-1, -1);
+        maxBounds = QVector2D(1, 1);
+        return;
+    }
+
+    minBounds = QVector2D(std::numeric_limits<float>::max(), std::numeric_limits<float>::max());
+    maxBounds = QVector2D(std::numeric_limits<float>::lowest(), std::numeric_limits<float>::lowest());
+
+    for (const auto& graph : graphs) {
+        for (const auto& point : graph) {
+            if (point.x() < minBounds.x()) minBounds.setX(point.x());
+            if (point.y() < minBounds.y()) minBounds.setY(point.y());
+            if (point.x() > maxBounds.x()) maxBounds.setX(point.x());
+            if (point.y() > maxBounds.y()) maxBounds.setY(point.y());
+        }
+    }
+}
