@@ -6,6 +6,7 @@
 #include <QOpenGLFunctions>
 #include <QVector2D>
 #include <QMouseEvent>
+#include <optional>
 #include <QWheelEvent>
 #include <vector>
 
@@ -29,19 +30,23 @@ protected:
     void mouseMoveEvent(QMouseEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
 
+    bool event(QEvent *event) override;  // Add this line
+
 private:
-    std::vector<std::vector<QVector2D>> graphs;
-    QVector2D minBounds;
-    QVector2D maxBounds;
-    QVector2D translation;
-    float zoomLevel;
-
-    QPoint lastMousePosition;
-
-    void updateBounds();
-    void updateTranslationToCenter();
     QVector2D mapToScreen(const QVector2D& point) const;
     void drawAxisLabels(QPainter &painter, int tickLength = 5, int numTicks = 10);
+    void updateBounds();
+    void updateTranslationToCenter();
+
+    QVector<QVector<QVector2D>> graphs;
+    QVector2D minBounds, maxBounds;
+    QVector2D translation;
+    float zoomLevel;
+    QPoint lastMousePosition;
+    int margin;
+    std::optional<QVector2D> hoveredPoint;  // Stores the hovered point if any
 };
+
+
 
 #endif // OPENGLWIDGET2D_H

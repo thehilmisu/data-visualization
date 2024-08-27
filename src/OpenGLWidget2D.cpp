@@ -2,10 +2,13 @@
 #include <QDebug>
 #include <QPainter>
 #include <QFont>
-#include <cmath>  // Include this to use fabs
+#include <cmath>  
+#include <iostream>
 
 OpenGLWidget2D::OpenGLWidget2D(QWidget *parent)
-    : QOpenGLWidget(parent), minBounds(-1, -1), maxBounds(1, 1), translation(0, 0), zoomLevel(1.0f) {}
+    : QOpenGLWidget(parent), minBounds(-1, -1), maxBounds(1, 1), translation(0, 0), zoomLevel(1.0f), margin(75) {
+    setMouseTracking(true); 
+}
 
 OpenGLWidget2D::~OpenGLWidget2D() {}
 
@@ -31,21 +34,92 @@ void OpenGLWidget2D::paintGL() {
     QPainter painter(this);
     painter.setPen(Qt::white);
     painter.setFont(QFont("Arial", 10));
+
     drawAxisLabels(painter);
+
+    // Highlight the hovered point if any
+    if (hoveredPoint) {
+        QVector2D screenPoint = mapToScreen(hoveredPoint.value());
+        painter.setBrush(Qt::yellow);  // Highlight color
+        painter.drawEllipse(QPointF(screenPoint.x(), screenPoint.y()), 7, 7);
+        painter.drawText(screenPoint.x() + 10, screenPoint.y() - 10,
+                         QString("(%1, %2)").arg(hoveredPoint->x()).arg(hoveredPoint->y()));
+    }
 }
+
 
 void OpenGLWidget2D::mousePressEvent(QMouseEvent *event) {
     lastMousePosition = event->pos();
 }
 
-void OpenGLWidget2D::mouseMoveEvent(QMouseEvent *event) {
-    if (event->buttons() & Qt::LeftButton) {
-        QVector2D delta = QVector2D(event->pos() - lastMousePosition);
-        translation += delta / zoomLevel;  // Adjust translation based on zoom level
-        lastMousePosition = event->pos();
-        update();
+bool OpenGLWidget2D::event(QEvent *event) {
+    if (event->type() == QEvent::HoverMove) {
+        QHoverEvent *hoverEvent = static_cast<QHoverEvent*>(event);
+        QVector2D mousePos(hoverEvent->pos());
+
+        bool pointHovered = false;
+
+        // Iterate through the graphs and check if the mouse is near any point
+        for (const auto& graph : graphs) {
+            for (const auto& point : graph) {
+                QVector2D screenPoint = mapToScreen(point);
+                float distance = (mousePos - screenPoint).length();
+
+                if (distance < 5.0f) {  // Threshold for detecting hover
+                    pointHovered = true;
+                    hoveredPoint = point;
+                    update();  // Trigger repaint to highlight the point
+                    break;
+                }
+            }
+            if (pointHovered) break;
+        }
+
+        // If no point is hovered, reset the hovered point and update
+        if (!pointHovered) {
+            hoveredPoint.reset();
+            update();  // Trigger repaint to remove highlight
+        }
+
+        return true;  // Indicate that the event has been handled
     }
+
+    // Pass the event on to the base class
+    return QOpenGLWidget::event(event);
 }
+
+
+void OpenGLWidget2D::mouseMoveEvent(QMouseEvent *event) {
+    QVector2D mousePos(event->pos());
+
+    bool pointHovered = false;
+
+    // Iterate through the graphs and check if the mouse is near any point
+    for (const auto& graph : graphs) {
+        for (const auto& point : graph) {
+            QVector2D screenPoint = mapToScreen(point);
+            float distance = (mousePos - screenPoint).length();
+
+            if (distance < 5.0f) {  // Threshold for detecting hover
+                pointHovered = true;
+                hoveredPoint = point;
+                update();  // Trigger repaint to highlight the point
+                break;
+            }
+        }
+        if (pointHovered) break;
+    }
+
+    // If no point is hovered, reset the hovered point and update
+    if (!pointHovered) {
+        hoveredPoint.reset();
+        update();  // Trigger repaint to remove highlight
+    }
+
+    // No need to update `lastMousePosition` unless used elsewhere for dragging or other interactions
+}
+
+
 
 void OpenGLWidget2D::wheelEvent(QWheelEvent *event) {
     float zoomFactor = 1.0f + event->angleDelta().y() / 2400.0f;
@@ -64,7 +138,8 @@ void OpenGLWidget2D::wheelEvent(QWheelEvent *event) {
 }
 
 void OpenGLWidget2D::addGraph(const std::vector<QVector2D>& data) {
-    graphs.push_back(data);
+    QVector<QVector2D> qtData(data.begin(), data.end());
+    graphs.push_back(qtData);
     updateBounds();
     updateTranslationToCenter();
     update();
@@ -106,20 +181,13 @@ void OpenGLWidget2D::updateBounds() {
 }
 
 void OpenGLWidget2D::updateTranslationToCenter() {
-    // Calculate the midpoint of the data bounds
-    QVector2D dataCenter = (minBounds + maxBounds) / 2.0f;
-
-    // Calculate the screen center
-    QVector2D screenCenter(width() / 2.0f, height() / 2.0f);
-
-    // Adjust the translation to center the graph
-    translation = screenCenter - mapToScreen(dataCenter);
+    // Set translation to position (0, 0) at the bottom-left corner
+    translation = QVector2D(margin, height() - margin);
 }
 
 void OpenGLWidget2D::drawAxisLabels(QPainter &painter, int tickLength, int numTicks) {
-    const int margin = 75;  
-    float xRange = maxBounds.x() - minBounds.x();
-    float yRange = maxBounds.y() - minBounds.y();
+    float xRange = maxBounds.x() - 0;  // Start from 0 instead of minBounds.x()
+    float yRange = maxBounds.y() - 0;  // Start from 0 instead of minBounds.y()
 
     float xTickSpacing = xRange / numTicks;
     float yTickSpacing = yRange / numTicks;
@@ -127,15 +195,15 @@ void OpenGLWidget2D::drawAxisLabels(QPainter &painter, int tickLength, int numTi
     painter.setPen(Qt::white);
 
     // Draw X-axis labels, line, and corresponding points
-    float xAxisYPos = height() - margin + translation.y() * zoomLevel;  // Y position of X-axis considering translation
-    float xAxisStartX = margin + translation.x() * zoomLevel;
-    float xAxisEndX = width() - margin + translation.x() * zoomLevel;
+    float xAxisYPos = height() - margin;  // Y position of X-axis at the bottom
+    float xAxisStartX = margin;
+    float xAxisEndX = width() - margin;
 
     painter.drawLine(xAxisStartX, xAxisYPos, xAxisEndX, xAxisYPos);  // Draw the X-axis line
 
     for (int i = 0; i <= numTicks; ++i) {
-        float xValue = minBounds.x() + i * xTickSpacing;
-        float screenX = margin + (xValue - minBounds.x()) / xRange * (width() - 2 * margin) * zoomLevel + translation.x();
+        float xValue = 0 + i * xTickSpacing;  // Start from 0 and scale up
+        float screenX = margin + (xValue / xRange) * (width() - 2 * margin) * zoomLevel;
 
         if (screenX >= margin && screenX <= width() - margin) {
             // Draw tick marks
@@ -147,15 +215,15 @@ void OpenGLWidget2D::drawAxisLabels(QPainter &painter, int tickLength, int numTi
     }
 
     // Draw Y-axis labels, line, and corresponding points
-    float yAxisXPos = margin + translation.x() * zoomLevel;  // X position of Y-axis considering translation
-    float yAxisStartY = margin + translation.y() * zoomLevel;
-    float yAxisEndY = height() - margin + translation.y() * zoomLevel;
+    float yAxisXPos = margin;  // X position of Y-axis at the left
+    float yAxisStartY = height() - margin;
+    float yAxisEndY = margin;
 
     painter.drawLine(yAxisXPos, yAxisStartY, yAxisXPos, yAxisEndY);  // Draw the Y-axis line
 
     for (int i = 0; i <= numTicks; ++i) {
-        float yValue = minBounds.y() + i * yTickSpacing;
-        float screenY = height() - margin - (yValue - minBounds.y()) / yRange * (height() - 2 * margin) * zoomLevel + translation.y();
+        float yValue = 0 + i * yTickSpacing;  // Start from 0 and scale up
+        float screenY = height() - margin - (yValue / yRange) * (height() - 2 * margin) * zoomLevel;
 
         if (screenY >= margin && screenY <= height() - margin) {
             // Draw tick marks
@@ -166,7 +234,7 @@ void OpenGLWidget2D::drawAxisLabels(QPainter &painter, int tickLength, int numTi
         }
     }
 
-    // Draw data points
+    // Draw data points with correct mapping
     for (const auto& graph : graphs) {
         for (const auto& point : graph) {
             QVector2D dataPoint = mapToScreen(point);
@@ -180,12 +248,12 @@ void OpenGLWidget2D::drawAxisLabels(QPainter &painter, int tickLength, int numTi
 }
 
 
-
-
 QVector2D OpenGLWidget2D::mapToScreen(const QVector2D& point) const {
-    const int margin = 75;  
-    float x = margin + ((point.x() - minBounds.x()) / (maxBounds.x() - minBounds.x())) * (width() - 2 * margin) * zoomLevel + translation.x();
-    float y = height() - margin - ((point.y() - minBounds.y()) / (maxBounds.y() - minBounds.y())) * (height() - 2 * margin) * zoomLevel + translation.y();
+    // X-axis: map from data point to screen space
+    float x = margin + (point.x() / maxBounds.x()) * (width() - 2 * margin) * zoomLevel;
+    // Y-axis: invert the Y-axis mapping because the origin is now at the bottom-left
+    float y = height() - margin - (point.y() / maxBounds.y()) * (height() - 2 * margin) * zoomLevel;
     return QVector2D(x, y);
 }
+
 
