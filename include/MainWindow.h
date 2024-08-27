@@ -3,7 +3,7 @@
 
 #include <QMainWindow>
 #include <QTimer>
-#include "OpenGLWidget2D.h"
+#include "GraphWidget.h"
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -15,9 +15,11 @@ public:
 private slots:
     void openFile();
     void updateGraph(); 
+    void start();
+    void stop();
 
 private:
-    OpenGLWidget2D *openGLWidget;  // The OpenGL 2D rendering widget
+    GraphWidget *graphWidget;  // The OpenGL 2D rendering widget
     QTimer *timer;
 };
 

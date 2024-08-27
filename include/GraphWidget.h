@@ -1,5 +1,5 @@
-#ifndef OPENGLWIDGET2D_H
-#define OPENGLWIDGET2D_H
+#ifndef GRAPHWIDGET_H
+#define GRAPHWIDGET_H
 
 #include <QOpenGLWidget>
 #include <QOpenGLFunctions>
@@ -10,12 +10,12 @@
 #include <QMouseEvent>
 #include <QWheelEvent>
 
-class OpenGLWidget2D : public QOpenGLWidget, protected QOpenGLFunctions {
+class GraphWidget : public QOpenGLWidget, protected QOpenGLFunctions {
     Q_OBJECT
 
 public:
-    explicit OpenGLWidget2D(QWidget *parent = nullptr);
-    ~OpenGLWidget2D();
+    explicit GraphWidget(QWidget *parent = nullptr);
+    ~GraphWidget();
 
     void addGraph(const std::vector<QVector2D>& points);  // Declaration of addGraph
     void addDataPoint(const QVector2D& point);
@@ -28,14 +28,13 @@ protected:
     void resizeGL(int w, int h) override;
     void paintGL() override;
 
-    void mousePressEvent(QMouseEvent *event) override;
-    void mouseMoveEvent(QMouseEvent *event) override;
-    void wheelEvent(QWheelEvent *event) override;
-    bool event(QEvent *event) override;
+    // void mousePressEvent(QMouseEvent *event) override;
+    // void mouseMoveEvent(QMouseEvent *event) override;
+    // void wheelEvent(QWheelEvent *event) override;
+    // bool event(QEvent *event) override;
 
 private:
     void drawAxisLabels(QPainter &painter, int tickLength = 5, int numTicks = 10);
-    void updateBounds(const QVector2D& point, bool& requiresZoomOut);
     void updateBounds(); // Add this declaration for the empty updateBounds function
     void adjustZoomAndTranslation();
     void updateTranslationToCenter();
@@ -50,7 +49,8 @@ private:
 
     std::optional<QVector2D> hoveredPoint;
 
-    const int margin = 50;
+    const int margin = 75;
+
 };
 
-#endif // OPENGLWIDGET2D_H
+#endif // GRAPHWIDGET_H

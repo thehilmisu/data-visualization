@@ -1,4 +1,4 @@
-#include "OpenGLWidget2D.h"
+#include "GraphWidget.h"
 #include <QDebug>
 #include <QPainter>
 #include <QFont>
@@ -7,19 +7,19 @@
 #include <QWheelEvent>
 #include <optional>
 
-OpenGLWidget2D::OpenGLWidget2D(QWidget *parent)
+GraphWidget::GraphWidget(QWidget *parent)
     : QOpenGLWidget(parent), minBounds(-1, -1), maxBounds(1, 1), translation(0, 0), zoomLevel(1.0f) {}
 
-OpenGLWidget2D::~OpenGLWidget2D() {}
+GraphWidget::~GraphWidget() {}
 
-void OpenGLWidget2D::initializeGL() {
+void GraphWidget::initializeGL() {
     initializeOpenGLFunctions();
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glEnable(GL_POINT_SMOOTH);
     glPointSize(5.0f);
 }
 
-void OpenGLWidget2D::resizeGL(int w, int h) {
+void GraphWidget::resizeGL(int w, int h) {
     glViewport(0, 0, w, h);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
@@ -28,7 +28,7 @@ void OpenGLWidget2D::resizeGL(int w, int h) {
     updateTranslationToCenter();
 }
 
-void OpenGLWidget2D::paintGL() {
+void GraphWidget::paintGL() {
     glClear(GL_COLOR_BUFFER_BIT);
   
     QPainter painter(this);
@@ -46,90 +46,7 @@ void OpenGLWidget2D::paintGL() {
     }
 }
 
-void OpenGLWidget2D::mousePressEvent(QMouseEvent *event) {
-    lastMousePosition = event->pos();
-}
-
-void OpenGLWidget2D::wheelEvent(QWheelEvent *event) {
-    float zoomFactor = 1.0f + event->angleDelta().y() / 2400.0f;
-    zoomLevel *= zoomFactor;
-
-    if (zoomLevel < 0.1f) zoomLevel = 0.1f;
-    if (zoomLevel > 100.0f) zoomLevel = 100.0f;
-
-    QVector2D mousePos(event->position());
-
-    update();
-}
-
-bool OpenGLWidget2D::event(QEvent *event) {
-    if (event->type() == QEvent::HoverMove) {
-        QHoverEvent *hoverEvent = static_cast<QHoverEvent*>(event);
-        QVector2D mousePos(hoverEvent->pos());
-
-        bool pointHovered = false;
-
-        // Iterate through the graphs and check if the mouse is near any point
-        for (const auto& graph : graphs) {
-            for (const auto& point : graph) {
-                QVector2D screenPoint = mapToScreen(point);
-                float distance = (mousePos - screenPoint).length();
-
-                if (distance < 5.0f) {  // Threshold for detecting hover
-                    pointHovered = true;
-                    hoveredPoint = point;
-                    update();  // Trigger repaint to highlight the point
-                    break;
-                }
-            }
-            if (pointHovered) break;
-        }
-
-        // If no point is hovered, reset the hovered point and update
-        if (!pointHovered) {
-            hoveredPoint.reset();
-            update();  // Trigger repaint to remove highlight
-        }
-
-        return true;  // Indicate that the event has been handled
-    }
-
-    // Pass the event on to the base class
-    return QOpenGLWidget::event(event);
-}
-
-
-void OpenGLWidget2D::mouseMoveEvent(QMouseEvent *event) {
-    QVector2D mousePos(event->pos());
-
-    bool pointHovered = false;
-
-    // Iterate through the graphs and check if the mouse is near any point
-    for (const auto& graph : graphs) {
-        for (const auto& point : graph) {
-            QVector2D screenPoint = mapToScreen(point);
-            float distance = (mousePos - screenPoint).length();
-
-            if (distance < 5.0f) {  // Threshold for detecting hover
-                pointHovered = true;
-                hoveredPoint = point;
-                update();  // Trigger repaint to highlight the point
-                break;
-            }
-        }
-        if (pointHovered) break;
-    }
-
-    // If no point is hovered, reset the hovered point and update
-    if (!pointHovered) {
-        hoveredPoint.reset();
-        update();  // Trigger repaint to remove highlight
-    }
-
-    // No need to update `lastMousePosition` unless used elsewhere for dragging or other interactions
-}
-
-void OpenGLWidget2D::drawAxisLabels(QPainter &painter, int tickLength, int numTicks) {
+void GraphWidget::drawAxisLabels(QPainter &painter, int tickLength, int numTicks) {
     float xRange = maxBounds.x() - 0;  // Start from 0 instead of minBounds.x()
     float yRange = maxBounds.y() - 0;  // Start from 0 instead of minBounds.y()
 
@@ -141,13 +58,13 @@ void OpenGLWidget2D::drawAxisLabels(QPainter &painter, int tickLength, int numTi
     // Draw X-axis labels, line, and corresponding points
     float xAxisYPos = height() - margin;  // Y position of X-axis at the bottom
     float xAxisStartX = margin;
-    float xAxisEndX = width() - margin;
+    float xAxisEndX = width();
 
     painter.drawLine(xAxisStartX, xAxisYPos, xAxisEndX, xAxisYPos);  // Draw the X-axis line
 
     for (int i = 0; i <= numTicks; ++i) {
         float xValue = 0 + i * xTickSpacing;  // Start from 0 and scale up
-        float screenX = margin + (xValue / xRange) * (width() - 2 * margin) * zoomLevel;
+        float screenX = mapToScreen(QVector2D(xValue, 0)).x();  // Use mapToScreen
 
         if (screenX >= margin && screenX <= width() - margin) {
             // Draw tick marks
@@ -167,7 +84,7 @@ void OpenGLWidget2D::drawAxisLabels(QPainter &painter, int tickLength, int numTi
 
     for (int i = 0; i <= numTicks; ++i) {
         float yValue = 0 + i * yTickSpacing;  // Start from 0 and scale up
-        float screenY = height() - margin - (yValue / yRange) * (height() - 2 * margin) * zoomLevel;
+        float screenY = mapToScreen(QVector2D(0, yValue)).y();  // Use mapToScreen
 
         if (screenY >= margin && screenY <= height() - margin) {
             // Draw tick marks
@@ -186,51 +103,50 @@ void OpenGLWidget2D::drawAxisLabels(QPainter &painter, int tickLength, int numTi
                 dataPoint.y() >= margin && dataPoint.y() <= height() - margin) {
                 painter.setBrush(Qt::red);
                 painter.drawEllipse(QPointF(dataPoint.x(), dataPoint.y()), 5, 5);
+                painter.drawText(dataPoint.x() + 10, dataPoint.y() - 10,
+                         QString("(%1, %2)").arg(point.x()).arg(point.y()));
             }
         }
     }
 }
 
-QVector2D OpenGLWidget2D::mapToScreen(const QVector2D& point) const {
-    float x = margin + (point.x() - minBounds.x()) / (maxBounds.x() - minBounds.x()) * (width() - 2 * margin);
-    float y = height() - margin - (point.y() - minBounds.y()) / (maxBounds.y() - minBounds.y()) * (height() - 2 * margin);
+QVector2D GraphWidget::mapToScreen(const QVector2D& point) const {
+    float x = margin + (point.x() - minBounds.x()) * zoomLevel + translation.x();
+    float y = height() - margin - (point.y() - minBounds.y()) * zoomLevel - translation.y();
     return QVector2D(x, y);
 }
 
-void OpenGLWidget2D::addDataPoint(const QVector2D& point) {
+
+void GraphWidget::addDataPoint(const QVector2D& point) {
     if (graphs.isEmpty()) {
         graphs.append(QVector<QVector2D>());
     }
     graphs[0].append(point);
 
-    bool requiresZoomOut = false;
-    updateBounds(point, requiresZoomOut);
+    updateBounds();
 
-    if (requiresZoomOut) {
-        adjustZoomAndTranslation();
-    }
+    adjustZoomAndTranslation();
 
     update();  // Trigger a redraw
 }
 
-void OpenGLWidget2D::addDataPoints(const std::vector<QVector2D>& points) {
+void GraphWidget::addDataPoints(const std::vector<QVector2D>& points) {
     if (graphs.isEmpty()) {
         graphs.append(QVector<QVector2D>());
     }
     bool requiresZoomOut = false;
     for (const auto& point : points) {
         graphs[0].append(point);
-        updateBounds(point, requiresZoomOut);
+        updateBounds();
     }
 
-    if (requiresZoomOut) {
-        adjustZoomAndTranslation();
-    }
-
+   
+    adjustZoomAndTranslation();
+   
     update();  // Trigger a redraw
 }
 
-void OpenGLWidget2D::addGraph(const std::vector<QVector2D>& points) {
+void GraphWidget::addGraph(const std::vector<QVector2D>& points) {
     QVector<QVector2D> qtData(points.begin(), points.end());
     graphs.push_back(qtData);
     updateBounds();
@@ -238,49 +154,35 @@ void OpenGLWidget2D::addGraph(const std::vector<QVector2D>& points) {
     update();
 }
 
-void OpenGLWidget2D::updateBounds(const QVector2D& point, bool& requiresZoomOut) {
-    if (point.x() < minBounds.x()) {
-        minBounds.setX(point.x());
-        requiresZoomOut = true;
-    }
-    if (point.y() < minBounds.y()) {
-        minBounds.setY(point.y());
-        requiresZoomOut = true;
-    }
-    if (point.x() > maxBounds.x()) {
-        maxBounds.setX(point.x());
-        requiresZoomOut = true;
-    }
-    if (point.y() > maxBounds.y()) {
-        maxBounds.setY(point.y());
-        requiresZoomOut = true;
-    }
-}
-
-void OpenGLWidget2D::adjustZoomAndTranslation() {
+void GraphWidget::adjustZoomAndTranslation() {
     float xRange = maxBounds.x() - minBounds.x();
     float yRange = maxBounds.y() - minBounds.y();
 
-    float xZoomFactor = width() / (xRange + 2 * margin);
-    float yZoomFactor = height() / (yRange + 2 * margin);
+    float xZoomFactor = (width() - 2 * margin) / xRange;
+    float yZoomFactor = (height() - 2 * margin) / yRange;
 
+    // The zoom level should ensure the entire data fits within the view
     zoomLevel = qMin(xZoomFactor, yZoomFactor);
+
+    // After adjusting the zoom level, update the translation
     updateTranslationToCenter();
 }
 
-void OpenGLWidget2D::updateTranslationToCenter() {
+void GraphWidget::updateTranslationToCenter() {
     QVector2D dataCenter = (minBounds + maxBounds) / 2.0f;
     QVector2D screenCenter(width() / 2.0f, height() / 2.0f);
-    translation = screenCenter - mapToScreen(dataCenter);
+
+    // Adjust translation based on the zoom level
+    translation = screenCenter - (dataCenter * zoomLevel);
 }
 
-void OpenGLWidget2D::rescaleAxes() {
+void GraphWidget::rescaleAxes() {
     updateBounds();
     updateTranslationToCenter();
     update();
 }
 
-void OpenGLWidget2D::clearGraphs() {
+void GraphWidget::clearGraphs() {
     graphs.clear();
     minBounds = QVector2D(-1, -1);
     maxBounds = QVector2D(1, 1);
@@ -289,7 +191,7 @@ void OpenGLWidget2D::clearGraphs() {
     update();
 }
 
-void OpenGLWidget2D::updateBounds() {
+void GraphWidget::updateBounds() {
     if (graphs.isEmpty()) {
         minBounds = QVector2D(-1, -1);
         maxBounds = QVector2D(1, 1);

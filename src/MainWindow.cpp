@@ -8,25 +8,27 @@
 #include <QVector2D>
 
 MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent), openGLWidget(new OpenGLWidget2D(this)), timer(new QTimer(this)) {
+    : QMainWindow(parent), graphWidget(new GraphWidget(this)), timer(new QTimer(this)) {
 
     std::vector<QVector2D> data = {QVector2D(5, 5), QVector2D(8, 8), QVector2D(20, 5)};
     
-    openGLWidget->addGraph(data);
-    openGLWidget->rescaleAxes();
-    setCentralWidget(openGLWidget);
+    graphWidget->addGraph(data);
+    graphWidget->rescaleAxes();
+    setCentralWidget(graphWidget);
 
     QMenu *fileMenu = menuBar()->addMenu(tr("&File"));
     fileMenu->addAction(tr("&Open"), this, &MainWindow::openFile);
+    fileMenu->addAction(tr("&Start"), this, &MainWindow::start);
+    fileMenu->addAction(tr("&Stop"), this, &MainWindow::stop);
 
     connect(timer, &QTimer::timeout, this, &MainWindow::updateGraph);
-    timer->start(1000);  // Start the timer with a 1-second interval
+    timer->setInterval(1000); 
 
 }
 
 MainWindow::~MainWindow() {
     delete timer;
-    delete openGLWidget;
+    delete graphWidget;
 }
 
 void MainWindow::updateGraph()
@@ -36,7 +38,17 @@ void MainWindow::updateGraph()
     float y = QRandomGenerator::global()->generateDouble() * 100.0;  // Scales the random double between 0.0 and 10.0
 
     // Add the data point to the graph
-    openGLWidget->addDataPoint(QVector2D(x, y));
+    graphWidget->addDataPoint(QVector2D(x, y));
+}
+
+void MainWindow::start()
+{
+    timer->start();
+}
+
+void MainWindow::stop()
+{
+    timer->stop();
 }
 
 void MainWindow::openFile() {

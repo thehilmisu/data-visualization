@@ -24,6 +24,7 @@ set(SOURCES
     src/OpenGLWidget.cpp
     src/OpenGLWidget2D.cpp
     src/DataLoader.cpp
+    src/GraphWidget.cpp
 )
 
 # Headers that require MOC
@@ -31,6 +32,7 @@ set(HEADERS
     include/MainWindow.h
     include/OpenGLWidget.h
     include/OpenGLWidget2D.h
+    include/GraphWidget.h
 )
 
 # Qt5 automatically handles MOC, but this makes it explicit
