@@ -2,7 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include "OpenGLWidget.h"
+#include "OpenGLWidget2D.h"
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -13,10 +13,9 @@ public:
 
 private slots:
     void openFile();
-    void saveImage();
 
 private:
-    OpenGLWidget *openGLWidget;  // Ensure this is declared
+    OpenGLWidget2D *openGLWidget;  // The OpenGL 2D rendering widget
 };
 
 #endif // MAINWINDOW_H

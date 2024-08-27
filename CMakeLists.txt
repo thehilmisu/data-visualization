@@ -10,7 +10,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 # Find the Qt5 package
 find_package(Qt5 COMPONENTS Widgets OpenGL REQUIRED)
 
-# Find the OpenGL package
+# Find OpenGL and set the preference to GLVND
+set(OpenGL_GL_PREFERENCE GLVND)
 find_package(OpenGL REQUIRED)
 
 # Include directories
@@ -21,6 +22,7 @@ set(SOURCES
     src/main.cpp
     src/MainWindow.cpp
     src/OpenGLWidget.cpp
+    src/OpenGLWidget2D.cpp
     src/DataLoader.cpp
 )
 
@@ -28,6 +30,7 @@ set(SOURCES
 set(HEADERS
     include/MainWindow.h
     include/OpenGLWidget.h
+    include/OpenGLWidget2D.h
 )
 
 # Qt5 automatically handles MOC, but this makes it explicit

@@ -7,6 +7,8 @@
 #include <QVector3D>
 #include <QMouseEvent>
 #include <QWheelEvent>
+#include <QOpenGLTexture>
+#include <QImage>
 #include <vector>
 
 class OpenGLWidget : public QOpenGLWidget, protected QOpenGLFunctions {
@@ -17,6 +19,7 @@ public:
     ~OpenGLWidget();
 
     void setPoints(const std::vector<QVector3D>& points);
+    void setImage(const QString &imagePath); // Function to load an image
 
 protected:
     void initializeGL() override;
@@ -35,6 +38,11 @@ private:
     float zoomLevel;
 
     std::vector<QVector3D> points; // Store the points to be rendered
+
+    QOpenGLTexture *texture;       // Texture for rendering the image
+    QVector3D imagePosition;       // Position of the image in 3D space
+    QString imagePath;             // Path to the image
+    bool textureNeedsUpdate;       // Flag to check if texture needs to be loaded
 };
 
 #endif // OPENGLWIDGET_H

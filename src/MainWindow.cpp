@@ -1,16 +1,21 @@
 #include "MainWindow.h"
-#include "OpenGLWidget.h"
-#include "DataLoader.h"
 #include <QMenuBar>
 #include <QFileDialog>
 #include <QMessageBox>
+#include <QDir>
+#include <QDebug>
 
 MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent), openGLWidget(new OpenGLWidget(this)) {
+    : QMainWindow(parent), openGLWidget(new OpenGLWidget2D(this)) {
 
+    std::vector<QVector2D> data = {QVector2D(5, 5), QVector2D(8, 8), QVector2D(20, 5)};
     
-    openFile();
+    openGLWidget->addGraph(data);
+    openGLWidget->rescaleAxes();
     setCentralWidget(openGLWidget);
+
+    QMenu *fileMenu = menuBar()->addMenu(tr("&File"));
+    fileMenu->addAction(tr("&Open"), this, &MainWindow::openFile);
 }
 
 MainWindow::~MainWindow() {
@@ -18,32 +23,13 @@ MainWindow::~MainWindow() {
 }
 
 void MainWindow::openFile() {
-    //QString fileName = QFileDialog::getOpenFileName(this, "Open Data File", "", "CSV Files (*.csv);;All Files (*)");
-    QString fileName = "../resources/sample_data.csv";
-    if (!fileName.isEmpty()) {
-        DataLoader dataLoader;
-        std::vector<std::vector<float>> data = dataLoader.loadCSV(fileName);
+    
+    
+    
+    // QString imagePath = QFileDialog::getOpenFileName(this, "Open Image File", "", "Image Files (*.png *.jpg *.bmp);;All Files (*)");
 
-        if (!data.empty()) {
-            // Assume the data has three columns: X, Y, Z
-            std::vector<QVector3D> points;
-            for (const auto& row : data) {
-                if (row.size() == 3) {
-                    points.emplace_back(row[0], row[1], row[2]);
-                }
-            }
-
-            // Pass the loaded points to the OpenGLWidget for rendering
-            openGLWidget->setPoints(points);
-        } else {
-            QMessageBox::warning(this, "Error", "Failed to load data from the file.");
-        }
-    }
-}
-
-void MainWindow::saveImage() {
-    QString fileName = QFileDialog::getSaveFileName(this, "Save Image", "", "PNG Files (*.png);;All Files (*)");
-    if (!fileName.isEmpty()) {
-        // Save the current visualization as an image
-    }
+    // if (!imagePath.isEmpty()) {
+    //     QVector2D coordinate(400.0f, 300.0f);  // Centered coordinate (example)
+    //     openGLWidget->setImageAtCoordinate(coordinate, imagePath);
+    // }
 }

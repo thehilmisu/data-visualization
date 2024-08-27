@@ -1,13 +1,24 @@
 #include "OpenGLWidget.h"
+#include <QOpenGLTexture>
+#include <QImage>
+#include <QDebug>
 
 OpenGLWidget::OpenGLWidget(QWidget *parent)
-    : QOpenGLWidget(parent), zoomLevel(1.0f) {}
+    : QOpenGLWidget(parent), zoomLevel(1.0f), texture(nullptr), textureNeedsUpdate(false) {}
 
-OpenGLWidget::~OpenGLWidget() {}
+OpenGLWidget::~OpenGLWidget() {
+    delete texture; // Clean up the texture
+}
 
 void OpenGLWidget::setPoints(const std::vector<QVector3D>& points) {
     this->points = points;
     update(); // Trigger a repaint to show the new points
+}
+
+void OpenGLWidget::setImage(const QString &imagePath) {
+    this->imagePath = imagePath;
+    textureNeedsUpdate = true;
+    update(); // Trigger a repaint to process the image loading
 }
 
 void OpenGLWidget::initializeGL() {
@@ -36,14 +47,44 @@ void OpenGLWidget::paintGL() {
     QMatrix4x4 mvpMatrix = projectionMatrix * modelViewMatrix;
     glLoadMatrixf(mvpMatrix.constData());
 
-    // Render the points
-    glBegin(GL_POINTS);
-    glColor3f(1.0f, 1.0f, 1.0f); // Set point color to white
-    for (const auto& point : points) {
-        glVertex3f(point.x(), point.y(), point.z());
+    // Load the texture if needed
+    if (textureNeedsUpdate) {
+        if (texture) {
+            delete texture;
+            texture = nullptr;
+        }
+        QImage img(imagePath);
+        if (!img.isNull()) {
+            texture = new QOpenGLTexture(img.mirrored());
+            textureNeedsUpdate = false;
+        } else {
+            qDebug() << "Failed to load image:" << imagePath;
+        }
     }
-    glEnd();
+
+    // Render the image as a textured quad at each point
+    if (texture) {
+        texture->bind();
+
+        for (const auto& point : points) {
+            glPushMatrix(); // Save the current matrix
+
+            // Translate to the point's position
+            glTranslatef(point.x(), point.y(), point.z());
+
+            // Render the quad
+            glBegin(GL_QUADS);
+            glTexCoord2f(0.0f, 0.0f); glVertex3f(-0.5f, -0.5f, 0.0f); // Bottom-left
+            glTexCoord2f(1.0f, 0.0f); glVertex3f(0.5f, -0.5f, 0.0f);  // Bottom-right
+            glTexCoord2f(1.0f, 1.0f); glVertex3f(0.5f, 0.5f, 0.0f);   // Top-right
+            glTexCoord2f(0.0f, 1.0f); glVertex3f(-0.5f, 0.5f, 0.0f);  // Top-left
+            glEnd();
+
+            glPopMatrix(); // Restore the previous matrix
+        }
+    }
 }
+
 
 void OpenGLWidget::mousePressEvent(QMouseEvent *event) {
     lastMousePosition = event->pos();
