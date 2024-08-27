@@ -117,7 +117,7 @@ void OpenGLWidget2D::updateTranslationToCenter() {
 }
 
 void OpenGLWidget2D::drawAxisLabels(QPainter &painter, int tickLength, int numTicks) {
-    const int margin = 50;  
+    const int margin = 75;  
     float xRange = maxBounds.x() - minBounds.x();
     float yRange = maxBounds.y() - minBounds.y();
 
@@ -127,64 +127,65 @@ void OpenGLWidget2D::drawAxisLabels(QPainter &painter, int tickLength, int numTi
     painter.setPen(Qt::white);
 
     // Draw X-axis labels, line, and corresponding points
-    painter.drawLine(margin, height() - margin, width() - margin, height() - margin);  // Draw the X-axis line
+    float xAxisYPos = height() - margin + translation.y() * zoomLevel;  // Y position of X-axis considering translation
+    float xAxisStartX = margin + translation.x() * zoomLevel;
+    float xAxisEndX = width() - margin + translation.x() * zoomLevel;
+
+    painter.drawLine(xAxisStartX, xAxisYPos, xAxisEndX, xAxisYPos);  // Draw the X-axis line
 
     for (int i = 0; i <= numTicks; ++i) {
         float xValue = minBounds.x() + i * xTickSpacing;
-        QVector2D screenPoint = mapToScreen(QVector2D(xValue, 0.0f));
+        float screenX = margin + (xValue - minBounds.x()) / xRange * (width() - 2 * margin) * zoomLevel + translation.x();
 
-        if (screenPoint.x() >= margin && screenPoint.x() <= width() - margin) {
+        if (screenX >= margin && screenX <= width() - margin) {
             // Draw tick marks
-            painter.drawLine(screenPoint.x(), height() - margin, screenPoint.x(), height() - margin - tickLength); 
+            painter.drawLine(screenX, xAxisYPos, screenX, xAxisYPos - tickLength); 
             
             // Draw X-axis label
-            painter.drawText(screenPoint.x(), height() - margin + 15, QString::number(xValue, 'f', 2));
-
-            // Draw corresponding data point (if applicable)
-            for (const auto& graph : graphs) {
-                for (const auto& point : graph) {
-                    if (std::abs(point.x() - xValue) < xTickSpacing / 2) {
-                        QVector2D dataPoint = mapToScreen(point);
-                        painter.setBrush(Qt::red);
-                        painter.drawEllipse(QPointF(dataPoint.x(), dataPoint.y()), 5, 5);
-                    }
-                }
-            }
+            painter.drawText(screenX, xAxisYPos + 15, QString::number(xValue, 'f', 2));
         }
     }
 
     // Draw Y-axis labels, line, and corresponding points
-    painter.drawLine(margin, margin, margin, height() - margin);  // Draw the Y-axis line
+    float yAxisXPos = margin + translation.x() * zoomLevel;  // X position of Y-axis considering translation
+    float yAxisStartY = margin + translation.y() * zoomLevel;
+    float yAxisEndY = height() - margin + translation.y() * zoomLevel;
+
+    painter.drawLine(yAxisXPos, yAxisStartY, yAxisXPos, yAxisEndY);  // Draw the Y-axis line
 
     for (int i = 0; i <= numTicks; ++i) {
         float yValue = minBounds.y() + i * yTickSpacing;
-        QVector2D screenPoint = mapToScreen(QVector2D(0.0f, yValue));
+        float screenY = height() - margin - (yValue - minBounds.y()) / yRange * (height() - 2 * margin) * zoomLevel + translation.y();
 
-        if (screenPoint.y() >= margin && screenPoint.y() <= height() - margin) {
+        if (screenY >= margin && screenY <= height() - margin) {
             // Draw tick marks
-            painter.drawLine(margin, screenPoint.y(), margin + tickLength, screenPoint.y()); 
+            painter.drawLine(yAxisXPos, screenY, yAxisXPos + tickLength, screenY); 
             
             // Draw Y-axis label
-            painter.drawText(margin + 5, screenPoint.y(), QString::number(yValue, 'f', 2));
+            painter.drawText(yAxisXPos + 5, screenY, QString::number(yValue, 'f', 2));
+        }
+    }
 
-            // Draw corresponding data point (if applicable)
-            for (const auto& graph : graphs) {
-                for (const auto& point : graph) {
-                    if (std::abs(point.y() - yValue) < yTickSpacing / 2) {
-                        QVector2D dataPoint = mapToScreen(point);
-                        painter.setBrush(Qt::red);
-                        painter.drawEllipse(QPointF(dataPoint.x(), dataPoint.y()), 5, 5);
-                    }
-                }
+    // Draw data points
+    for (const auto& graph : graphs) {
+        for (const auto& point : graph) {
+            QVector2D dataPoint = mapToScreen(point);
+            if (dataPoint.x() >= margin && dataPoint.x() <= width() - margin &&
+                dataPoint.y() >= margin && dataPoint.y() <= height() - margin) {
+                painter.setBrush(Qt::red);
+                painter.drawEllipse(QPointF(dataPoint.x(), dataPoint.y()), 5, 5);
             }
         }
     }
 }
 
 
+
+
 QVector2D OpenGLWidget2D::mapToScreen(const QVector2D& point) const {
     const int margin = 75;  
-    float x = margin + (point.x() - minBounds.x()) / (maxBounds.x() - minBounds.x()) * (width() - 2 * margin);
-    float y = height() - margin - (point.y() - minBounds.y()) / (maxBounds.y() - minBounds.y()) * (height() - 2 * margin);
+    float x = margin + ((point.x() - minBounds.x()) / (maxBounds.x() - minBounds.x())) * (width() - 2 * margin) * zoomLevel + translation.x();
+    float y = height() - margin - ((point.y() - minBounds.y()) / (maxBounds.y() - minBounds.y())) * (height() - 2 * margin) * zoomLevel + translation.y();
     return QVector2D(x, y);
 }
+
