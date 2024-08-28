@@ -24,7 +24,9 @@ MainWindow::MainWindow(QWidget *parent)
     fileMenu->addAction(tr("&Open"), this, &MainWindow::openFile);
     fileMenu->addAction(tr("&Start"), this, &MainWindow::start);
     fileMenu->addAction(tr("&Stop"), this, &MainWindow::stop);
+    fileMenu->addAction(tr("&Exit"),this, &MainWindow::close);
 
+    
     connect(timer, &QTimer::timeout, this, &MainWindow::updateGraph);
     timer->setInterval(1000); 
 
@@ -38,8 +40,8 @@ MainWindow::~MainWindow() {
 void MainWindow::updateGraph()
 {
     // Generate a random data point
-    float x = QRandomGenerator::global()->generateDouble() * 100.0;  // Scales the random double between 0.0 and 10.0
-    float y = QRandomGenerator::global()->generateDouble() * 100.0;  // Scales the random double between 0.0 and 10.0
+    float x = QRandomGenerator::global()->generateDouble() * 100.0;  
+    float y = QRandomGenerator::global()->generateDouble() * 100.0;  
 
     // Add the data point to the graph
     graphWidget->addDataPoint(QVector2D(x, y));
@@ -57,10 +59,10 @@ void MainWindow::stop()
 
 void MainWindow::openFile() {
     
-    // QString imagePath = QFileDialog::getOpenFileName(this, "Open Image File", "", "Image Files (*.png *.jpg *.bmp);;All Files (*)");
+    QString imagePath = QFileDialog::getOpenFileName(this, "Open Image File", "", "Image Files (*.png *.jpg *.bmp);;All Files (*)");
 
-    // if (!imagePath.isEmpty()) {
-    //     QVector2D coordinate(400.0f, 300.0f);  // Centered coordinate (example)
-    //     openGLWidget->setImageAtCoordinate(coordinate, imagePath);
-    // }
+    if (!imagePath.isEmpty()) {
+        //QVector2D coordinate(400.0f, 300.0f);  // Centered coordinate (example)
+        //openGLWidget->setImageAtCoordinate(coordinate, imagePath);
+    }
 }

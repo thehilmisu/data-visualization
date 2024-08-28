@@ -80,7 +80,7 @@ bool GraphWidget::event(QEvent *event) {
                 if (distance < 5.0f) {  // Threshold for detecting hover
                     pointHovered = true;
                     hoveredPoint = point;
-                    update();  // Trigger repaint to highlight the point
+                    update();  
                     break;
                 }
             }
@@ -98,6 +98,21 @@ bool GraphWidget::event(QEvent *event) {
 
     // Pass the event on to the base class
     return QOpenGLWidget::event(event);
+}
+
+void GraphWidget::mousePressEvent(QMouseEvent *event) {
+    lastMousePosition = event->pos();
+}
+
+void GraphWidget::mouseMoveEvent(QMouseEvent *event) {
+    int dx = event->pos().x() - lastMousePosition.x();
+    int dy = event->pos().y() - lastMousePosition.y();
+
+    if (event->buttons() & Qt::LeftButton) {
+        lastMousePosition = event->pos();
+        std::cout << lastMousePosition.x() << "," << lastMousePosition.y() << std::endl;
+    }
+   
 }
 
 void GraphWidget::drawDataPoints(QPainter &painter, int tickLength, int numTicks)
