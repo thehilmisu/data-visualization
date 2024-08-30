@@ -41,7 +41,8 @@ private:
     void drawYAxis(QPainter &painter, int tickLength = 5, int numTicks = 10);
     void updateBounds(); // Add this declaration for the empty updateBounds function
     void adjustZoomAndTranslation();
-    void updateTranslationToCenter();
+    //void updateTranslationToCenter();
+    void updateTranslationToBottomLeft();
     QVector2D mapToScreen(const QVector2D& point) const;
 
     QVector<QVector2D> points;
