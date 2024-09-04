@@ -6,19 +6,20 @@
 #include <QDebug>
 #include <QRandomGenerator>
 #include <QVector2D>
+#include <QDateTime>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), graphWidget(new GraphWidget(this)), timer(new QTimer(this)) {
 
-    std::vector<QVector2D> data = {QVector2D(5, 5), QVector2D(8, 8), QVector2D(20, 5)};
+
+    setCentralWidget(graphWidget);
+    resize(800, 600);
     
 
-    for(auto i : data)
-        graphWidget->addDataPoint(i);
-    
-    graphWidget->update();
-    graphWidget->rescaleAxes();
-    setCentralWidget(graphWidget);
+    // Adding some test data points
+    graphWidget->addDataPoint(QVector2D(25, 5));
+    // graphWidget->addDataPoint(QVector2D(5, 3));
+    // graphWidget->addDataPoint(QVector2D(0.0f, 0.0f));
 
     QMenu *fileMenu = menuBar()->addMenu(tr("&File"));
     fileMenu->addAction(tr("&Open"), this, &MainWindow::openFile);
@@ -39,10 +40,14 @@ MainWindow::~MainWindow() {
 
 void MainWindow::updateGraph()
 {
+    QDateTime currentTime = QDateTime::currentDateTime();
+    double currentTimeSecs = currentTime.toSecsSinceEpoch();
+
     // Generate a random data point
     float x = QRandomGenerator::global()->generateDouble() * 100.0;  
     float y = QRandomGenerator::global()->generateDouble() * 100.0;  
 
+    //qDebug() << x << y;
     // Add the data point to the graph
     graphWidget->addDataPoint(QVector2D(x, y));
 }

@@ -24,7 +24,7 @@ void GraphWidget::resizeGL(int w, int h) {
     glLoadIdentity();
     glOrtho(0, w, 0, h, -1, 1);
     glMatrixMode(GL_MODELVIEW);
-   // updateTranslationToCenter();
+    updateTranslationToCenter();
 }
 
 void GraphWidget::paintGL() {
