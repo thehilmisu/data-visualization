@@ -4,21 +4,21 @@
 #include <QDebug>
 
 GraphWidget::GraphWidget(QWidget *parent)
-    : QWidget(parent), minBounds(-1, -1), maxBounds(1, 1), margin(50.0f), translation(0, 0), zoomLevel(1.0f) {
+    : QWidget(parent), minBounds(-1, -1), maxBounds(1, 1), margin(50.0f), zoomLevel(1.0f) {
         setAttribute(Qt::WA_Hover, true);
         setMouseTracking(true);
 }
 
 void GraphWidget::wheelEvent(QWheelEvent *event) {
-    float zoomFactor = 1.0f + event->angleDelta().y() / 2400.0f;
-    zoomLevel *= zoomFactor;
+    // float zoomFactor = 1.0f + event->angleDelta().y() / 2400.0f;
+    // zoomLevel *= zoomFactor;
 
-    if (zoomLevel < 0.1f) zoomLevel = 0.1f;
-    if (zoomLevel > 100.0f) zoomLevel = 100.0f;
+    // if (zoomLevel < 0.1f) zoomLevel = 0.1f;
+    // if (zoomLevel > 100.0f) zoomLevel = 100.0f;
 
-    QVector2D mousePos(event->position());
+    // QVector2D mousePos(event->position());
 
-    update();
+    // update();
 }
 
 void GraphWidget::paintEvent(QPaintEvent *event) {
@@ -62,8 +62,11 @@ void GraphWidget::addPoint(QVector2D point)
 }
 
 void GraphWidget::drawPoints(QPainter &painter) {
-    for (const auto &point : points) {
-        QVector2D dataPoint = mapToScreen(point);
+    int pointsToShow = 10;  // Number of points to show
+    int startIndex = qMax(0, points.size() - pointsToShow);  // Start index for the last 10 points
+
+    for (int i = startIndex; i < points.size(); ++i) {
+        QVector2D dataPoint = mapToScreen(points[i]);
         if (dataPoint.x() >= margin && dataPoint.x() <= width() - margin &&
             dataPoint.y() >= margin && dataPoint.y() <= height() - margin) {
             painter.setBrush(Qt::red);
@@ -99,7 +102,7 @@ void GraphWidget::drawTickMarks(QPainter &painter)
     painter.setFont(font);
 
     for (int i = 0; i <= numTicks; ++i) {
-        float xValue = 0 + i * xTickSpacing;
+        float xValue = i * xTickSpacing;
         float screenX = margin + (xValue * zoomLevel) ;
 
         if (screenX >= margin && screenX <= width() - margin) {
@@ -129,7 +132,7 @@ void GraphWidget::drawTickMarks(QPainter &painter)
     painter.setFont(font);
 
     for (int i = 0; i <= numTicks; ++i) {
-        float yValue = 0 + i * yTickSpacing;
+        float yValue = i * yTickSpacing;
         float screenY = height() - (margin + (yValue * zoomLevel));
 
         if (screenY >= margin && screenY <= height() - margin) {
@@ -138,7 +141,6 @@ void GraphWidget::drawTickMarks(QPainter &painter)
         }
     }
 }
-
 
 void GraphWidget::updateBounds() {
     if (points.isEmpty()) {
@@ -163,8 +165,8 @@ void GraphWidget::updateBounds() {
 }
 
 QVector2D GraphWidget::mapToScreen(const QVector2D &point) const {
-    float x = margin + (point.x() * zoomLevel) + translation.x();
-    float y = margin + (point.y() * zoomLevel) + translation.y();
+    float x = margin + (point.x() * zoomLevel) ;//+ translation.x();
+    float y = margin + (point.y() * zoomLevel) ;//+ translation.y();
     return QVector2D(x, height() - y);
 }
 
@@ -178,12 +180,5 @@ void GraphWidget::adjustZoomAndTranslation() {
     // Ensure the entire data fits within the view
     zoomLevel = qMin(xZoomFactor, yZoomFactor);
 
-    // Adjust translation to center the graph with (0,0) at the bottom-left corner
-    updateTranslationToBottomLeft();
 }
 
-void GraphWidget::updateTranslationToBottomLeft() {
-    QVector2D screenBottomLeft(margin, margin);
-    QVector2D dataBottomLeft(minBounds.x(), minBounds.y());
-    translation = screenBottomLeft - (dataBottomLeft * zoomLevel);
-}

@@ -27,14 +27,12 @@ private:
     QVector<QVector2D> points;
     QVector2D minBounds;
     QVector2D maxBounds;
-    QVector2D translation;
     float zoomLevel;  
     void drawAxisLines(QPainter &painter);
     void drawTickMarks(QPainter &painter);
     void drawPoints(QPainter &painter);
     void updateBounds();
     void adjustZoomAndTranslation();
-    void updateTranslationToBottomLeft();
     QVector2D mapToScreen(const QVector2D &point) const;
     float margin;
 };
