@@ -1,61 +1,42 @@
 #ifndef GRAPHWIDGET_H
 #define GRAPHWIDGET_H
 
-#include <QOpenGLWidget>
-#include <QOpenGLFunctions>
-#include <QVector2D>
+#include <QWidget>
+#include <QPointF>
 #include <QVector>
-#include <QPainter>
-#include <optional>  
-#include <QMouseEvent>
+#include <QVector2D>
 #include <QWheelEvent>
-#include <iostream>
 
-
-class GraphWidget : public QOpenGLWidget, protected QOpenGLFunctions {
+class GraphWidget : public QWidget {
     Q_OBJECT
 
 public:
     explicit GraphWidget(QWidget *parent = nullptr);
-    ~GraphWidget();
 
-    //void addGraph(const std::vector<QVector2D>& points);  // Declaration of addGraph
-    void addDataPoint(const QVector2D& point);
-    void addDataPoints(const std::vector<QVector2D>& points);
-    void clearPoints();
-    void rescaleAxes();  // Declaration of rescaleAxes
+public slots:
+    void addPoint(float x, float y);
+    void addPoint(QVector2D point);
 
 protected:
-    void initializeGL() override;
-    void resizeGL(int w, int h) override;
-    void paintGL() override;
-
-    void mousePressEvent(QMouseEvent *event) override;
-    void mouseMoveEvent(QMouseEvent *event) override;
+    void paintEvent(QPaintEvent *event) override;
+    void resizeEvent(QResizeEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
-    bool event(QEvent *event) override;
 
 private:
-    void drawDataPoints(QPainter &painter, int tickLength = 5, int numTicks = 10);
-    void drawXAxis(QPainter &painter, int tickLength = 5, int numTicks = 10);
-    void drawYAxis(QPainter &painter, int tickLength = 5, int numTicks = 10);
-    void updateBounds(); // Add this declaration for the empty updateBounds function
-    void adjustZoomAndTranslation();
-    //void updateTranslationToCenter();
-    void updateTranslationToBottomLeft();
-    QVector2D mapToScreen(const QVector2D& point) const;
-
+    QVector<QVector2D>  relativePoints;  
     QVector<QVector2D> points;
     QVector2D minBounds;
     QVector2D maxBounds;
     QVector2D translation;
-    float zoomLevel;
-    QPoint lastMousePosition;
-
-    std::optional<QVector2D> hoveredPoint;
-
-    const int margin = 75;
-
+    float zoomLevel;  
+    void drawAxisLines(QPainter &painter);
+    void drawTickMarks(QPainter &painter);
+    void drawPoints(QPainter &painter);
+    void updateBounds();
+    void adjustZoomAndTranslation();
+    void updateTranslationToBottomLeft();
+    QVector2D mapToScreen(const QVector2D &point) const;
+    float margin;
 };
 
 #endif // GRAPHWIDGET_H

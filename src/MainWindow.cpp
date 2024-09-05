@@ -17,9 +17,13 @@ MainWindow::MainWindow(QWidget *parent)
     
 
     // Adding some test data points
-    graphWidget->addDataPoint(QVector2D(25, 5));
+    //graphWidget->addDataPoint(QVector2D(25, 5));
     // graphWidget->addDataPoint(QVector2D(5, 3));
     // graphWidget->addDataPoint(QVector2D(0.0f, 0.0f));
+
+    graphWidget->addPoint(25,25);
+
+    graphWidget->addPoint(250,250);
 
     QMenu *fileMenu = menuBar()->addMenu(tr("&File"));
     fileMenu->addAction(tr("&Open"), this, &MainWindow::openFile);
@@ -49,7 +53,7 @@ void MainWindow::updateGraph()
 
     //qDebug() << x << y;
     // Add the data point to the graph
-    graphWidget->addDataPoint(QVector2D(x, y));
+    graphWidget->addPoint(QVector2D(x, y));
 }
 
 void MainWindow::start()

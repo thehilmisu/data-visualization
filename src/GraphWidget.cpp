@@ -1,48 +1,12 @@
 #include "GraphWidget.h"
-#include <QDebug>
 #include <QFont>
-#include <cmath>
+#include <QPainter>
+#include <QDebug>
 
 GraphWidget::GraphWidget(QWidget *parent)
-    : QOpenGLWidget(parent), minBounds(-1, -1), maxBounds(1, 1), translation(0, 0), zoomLevel(1.0f) {
-    setAttribute(Qt::WA_Hover, true);
-    setMouseTracking(true);
-}
-
-GraphWidget::~GraphWidget() {}
-
-void GraphWidget::initializeGL() {
-    initializeOpenGLFunctions();
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    glEnable(GL_POINT_SMOOTH);
-    glPointSize(5.0f);
-}
-
-void GraphWidget::resizeGL(int w, int h) {
-    glViewport(0, 0, w, h);
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    glOrtho(0, w, 0, h, -1, 1);
-    glMatrixMode(GL_MODELVIEW);
-    updateTranslationToCenter();
-}
-
-void GraphWidget::paintGL() {
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    QPainter painter(this);
-    painter.setPen(Qt::white);
-    painter.setFont(QFont("Arial", 10));
-    drawDataPoints(painter);
-
-    /// Highlight the hovered point if any
-    if (hoveredPoint) {
-        QVector2D screenPoint = mapToScreen(hoveredPoint.value());
-        painter.setBrush(Qt::yellow);  // Highlight color
-        painter.drawEllipse(QPointF(screenPoint.x(), screenPoint.y()), 7, 7);
-        painter.drawText(screenPoint.x() + 10, screenPoint.y() - 10,
-                         QString("(%1, %2)").arg(hoveredPoint->x()).arg(hoveredPoint->y()));
-    }
+    : QWidget(parent), minBounds(-1, -1), maxBounds(1, 1), margin(50.0f), translation(0, 0), zoomLevel(1.0f) {
+        setAttribute(Qt::WA_Hover, true);
+        setMouseTracking(true);
 }
 
 void GraphWidget::wheelEvent(QWheelEvent *event) {
@@ -57,58 +21,47 @@ void GraphWidget::wheelEvent(QWheelEvent *event) {
     update();
 }
 
-bool GraphWidget::event(QEvent *event) {
-    if (event->type() == QEvent::HoverMove) {
-        QHoverEvent *hoverEvent = static_cast<QHoverEvent*>(event);
-        QVector2D mousePos(hoverEvent->pos());
+void GraphWidget::paintEvent(QPaintEvent *event) {
+    Q_UNUSED(event);
 
-        bool pointHovered = false;
+    QPainter painter(this);
+    painter.setRenderHint(QPainter::Antialiasing);
 
-        for (const auto& point : points) {
-            QVector2D screenPoint = mapToScreen(point);
-            float distance = (mousePos - screenPoint).length();
+    // Draw axis lines
+    drawAxisLines(painter);
 
-            if (distance < 5.0f) {  // Threshold for detecting hover
-                pointHovered = true;
-                hoveredPoint = point;
-                update();
-                break;
-            }
-        }
-
-        // If no point is hovered, reset the hovered point and update
-        if (!pointHovered) {
-            hoveredPoint.reset();
-            update();  // Trigger repaint to remove highlight
-        }
-
-        return true;
-    }
-
-    // Pass the event on to the base class
-    return QOpenGLWidget::event(event);
+    // Draw tick marks
+    drawTickMarks(painter);
+   
+    // Draw points
+    drawPoints(painter);
+    
 }
 
-void GraphWidget::mousePressEvent(QMouseEvent *event) {
-    lastMousePosition = event->pos();
+void GraphWidget::resizeEvent(QResizeEvent *event) {
+    QWidget::resizeEvent(event);
+    updateBounds();  
+    update();  // Repaint the widget to show updated lines and points
 }
 
-void GraphWidget::mouseMoveEvent(QMouseEvent *event) {
-    int dx = event->pos().x() - lastMousePosition.x();
-    int dy = event->pos().y() - lastMousePosition.y();
+void GraphWidget::addPoint(float x, float y) {
+   
+    points.append(QVector2D(x,y));
+    adjustZoomAndTranslation();
+    update();
 
-    if (event->buttons() & Qt::LeftButton) {
-        lastMousePosition = event->pos();
-        translation += QVector2D(dx, -dy);  // Adjust translation based on mouse drag
-        update();
-    }
+    qDebug() << x << "," << y;
+}
+void GraphWidget::addPoint(QVector2D point)
+{
+    points.append(point);
+    adjustZoomAndTranslation();
+    update();
+
+    qDebug() << point.x() << "," << point.y();
 }
 
-void GraphWidget::drawDataPoints(QPainter &painter, int tickLength, int numTicks) {
-    painter.setPen(Qt::white);
-    drawXAxis(painter);
-    drawYAxis(painter);
-
+void GraphWidget::drawPoints(QPainter &painter) {
     for (const auto &point : points) {
         QVector2D dataPoint = mapToScreen(point);
         if (dataPoint.x() >= margin && dataPoint.x() <= width() - margin &&
@@ -119,18 +72,65 @@ void GraphWidget::drawDataPoints(QPainter &painter, int tickLength, int numTicks
     }
 }
 
-void GraphWidget::drawYAxis(QPainter &painter, int tickLength, int numTicks) {
+
+void GraphWidget::drawAxisLines(QPainter &painter) {
+    painter.setPen(Qt::black);
+
+    // Draw line from bottom left to top left (Y-axis)
+    painter.drawLine(QPointF(margin, height()-margin), QPointF(margin, margin));
+
+    // Draw line from bottom left to bottom right (X-axis)
+    painter.drawLine(QPointF(margin, height()-margin), QPointF(width()-margin, height()-margin));
+}
+
+void GraphWidget::drawTickMarks(QPainter &painter)
+{
     updateBounds();
-    float yRange = maxBounds.y() - minBounds.y();
+
+    int numTicks = 20;
+    int tickLength = 5;
+    float xRange = maxBounds.x() ;//- minBounds.x();
+    float xTickSpacing = xRange / numTicks;
+
+    float xAxisYPos = height() - margin;
+
+    QFont font = painter.font();
+    font.setPointSize(8);  
+    painter.setFont(font);
+
+    for (int i = 0; i <= numTicks; ++i) {
+        float xValue = 0 + i * xTickSpacing;
+        float screenX = margin + (xValue * zoomLevel) ;
+
+        if (screenX >= margin && screenX <= width() - margin) {
+            painter.drawLine(screenX, xAxisYPos, screenX, xAxisYPos + tickLength);
+            
+            // Save the current painter state
+            painter.save();
+            
+            // Move the painter's origin to the text position and rotate
+            painter.translate(screenX, xAxisYPos + 35);
+            painter.rotate(-90);
+
+            // Draw the rotated text
+            painter.drawText(0, 0, QString::number(xValue, 'f', 1));
+            
+            // Restore the painter state to what it was before the rotation
+            painter.restore();
+        }
+    }
+
+    float yRange = maxBounds.y() ;//- minBounds.y();
     float yTickSpacing = yRange / numTicks;
 
     float yAxisXPos = margin;
 
-    painter.drawLine(yAxisXPos, height() - margin, yAxisXPos, margin); // Draw the Y-axis line
+    font.setPointSize(8);  
+    painter.setFont(font);
 
     for (int i = 0; i <= numTicks; ++i) {
-        float yValue = minBounds.y() + i * yTickSpacing;
-        float screenY = height() - (margin + (yValue * zoomLevel) + translation.y());
+        float yValue = 0 + i * yTickSpacing;
+        float screenY = height() - (margin + (yValue * zoomLevel));
 
         if (screenY >= margin && screenY <= height() - margin) {
             painter.drawLine(yAxisXPos - tickLength, screenY, yAxisXPos, screenY);
@@ -139,82 +139,6 @@ void GraphWidget::drawYAxis(QPainter &painter, int tickLength, int numTicks) {
     }
 }
 
-void GraphWidget::drawXAxis(QPainter &painter, int tickLength, int numTicks) {
-    updateBounds();
-    float xRange = maxBounds.x() - minBounds.x();
-    float xTickSpacing = xRange / numTicks;
-
-    float xAxisYPos = height() - margin;
-
-    painter.drawLine(margin, xAxisYPos, width() - margin, xAxisYPos);
-
-    for (int i = 0; i <= numTicks; ++i) {
-        float xValue = minBounds.x() + i * xTickSpacing;
-        float screenX = margin + (xValue * zoomLevel) + translation.x();
-
-        if (screenX >= margin && screenX <= width() - margin) {
-            painter.drawLine(screenX, xAxisYPos, screenX, xAxisYPos - tickLength);
-            painter.drawText(screenX, xAxisYPos + 15, QString::number(xValue, 'f', 1));
-        }
-    }
-}
-
-QVector2D GraphWidget::mapToScreen(const QVector2D &point) const {
-    float x = margin + (point.x() * zoomLevel) + translation.x();
-    float y = margin + (point.y() * zoomLevel) + translation.y();
-    return QVector2D(x, height() - y);
-}
-
-void GraphWidget::addDataPoint(const QVector2D &point) {
-    points.append(point);
-    updateBounds();
-    adjustZoomAndTranslation();
-    update(); // Trigger a redraw
-}
-
-void GraphWidget::addDataPoints(const std::vector<QVector2D> &p_points) {
-    for (const auto &point : p_points) {
-        points.append(point);
-    }
-    updateBounds();
-    adjustZoomAndTranslation();
-    update(); // Trigger a redraw
-}
-
-void GraphWidget::adjustZoomAndTranslation() {
-    float xRange = maxBounds.x() - minBounds.x();
-    float yRange = maxBounds.y() - minBounds.y();
-
-    float xZoomFactor = (width() - 2 * margin) / xRange;
-    float yZoomFactor = (height() - 2 * margin) / yRange;
-
-    // Ensure the entire data fits within the view
-    zoomLevel = qMin(xZoomFactor, yZoomFactor);
-
-    // Adjust translation to center the graph with (0,0) at the bottom-left corner
-    updateTranslationToBottomLeft();
-}
-
-void GraphWidget::updateTranslationToBottomLeft() {
-    QVector2D screenBottomLeft(margin, margin);
-    QVector2D dataBottomLeft(minBounds.x(), minBounds.y());
-    translation = screenBottomLeft - (dataBottomLeft * zoomLevel);
-}
-
-void GraphWidget::rescaleAxes() {
-    updateBounds();
-    updateTranslationToBottomLeft();
-    update();
-}
-
-void GraphWidget::clearPoints() {
-    points.clear();
-    minBounds = QVector2D(-1, -1);
-    maxBounds = QVector2D(1, 1);
-    translation = QVector2D(0, 0);
-    zoomLevel = 1.0f;
-    update();
-}
 
 void GraphWidget::updateBounds() {
     if (points.isEmpty()) {
@@ -236,4 +160,30 @@ void GraphWidget::updateBounds() {
         if (point.y() > maxBounds.y())
             maxBounds.setY(point.y());
     }
+}
+
+QVector2D GraphWidget::mapToScreen(const QVector2D &point) const {
+    float x = margin + (point.x() * zoomLevel) + translation.x();
+    float y = margin + (point.y() * zoomLevel) + translation.y();
+    return QVector2D(x, height() - y);
+}
+
+void GraphWidget::adjustZoomAndTranslation() {
+    float xRange = maxBounds.x() - minBounds.x();
+    float yRange = maxBounds.y() - minBounds.y();
+
+    float xZoomFactor = (width() - 2 * margin) / xRange;
+    float yZoomFactor = (height() - 2 * margin) / yRange;
+
+    // Ensure the entire data fits within the view
+    zoomLevel = qMin(xZoomFactor, yZoomFactor);
+
+    // Adjust translation to center the graph with (0,0) at the bottom-left corner
+    updateTranslationToBottomLeft();
+}
+
+void GraphWidget::updateTranslationToBottomLeft() {
+    QVector2D screenBottomLeft(margin, margin);
+    QVector2D dataBottomLeft(minBounds.x(), minBounds.y());
+    translation = screenBottomLeft - (dataBottomLeft * zoomLevel);
 }
